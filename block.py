@@ -1,24 +1,28 @@
-import random
 import pygame
-from env import WHITE, BLOCK, BLOCKS_COUNT, BLOCKS_X_TILE_COUNT
-
+from env import BLOCK, BLOCKS_COUNT, BLOCKS_X_TILE_COUNT
 
 
 class Block(pygame.sprite.Sprite):
-    attack_keys = [pygame.K_a, pygame.K_s, pygame.K_d, pygame.K_f]
     """몬스터 클래스: 위치, 크기 등을 관리"""
     def __init__(self, key, idx):
         super().__init__()  # 스프라이트 초기화
         self.key = key
         self.size = BLOCK["size"]
         self.image = pygame.Surface([self.size, self.size])
-        self.image.fill(random.choice(BLOCK["colors"]))
+        self.image.fill(BLOCK["colors"][idx % len(BLOCK["colors"])])
         self.rect = self.image.get_rect()
 
         # 폰트 설정 및 키 표시
-        font = pygame.font.Font(None, BLOCK["font_size"]) # 폰트 및 크기 설정
-        key_name = pygame.key.name(self.key).upper() # 키 이름을 대문자로 변환 (e.g., 'a')
-        text_surf = font.render(key_name, True, WHITE) # 텍스트 Surface 생성
+        font = pygame.font.SysFont(BLOCK["font"], BLOCK["font_size"], bold=True) # 폰트 및 크기 설정
+        key_name_map = {
+            pygame.K_UP: "↑",
+            pygame.K_DOWN: "↓",
+            pygame.K_LEFT: "←",
+            pygame.K_RIGHT: "→",
+        }
+        # 맵에 키가 있으면 해당 심볼을, 없으면 키의 이름을 대문자로 사용
+        key_name = key_name_map.get(self.key, pygame.key.name(self.key).upper())
+        text_surf = font.render(key_name, True, BLOCK["font_color"])  # 텍스트 Surface 생성
         
         # 텍스트를 몬스터 이미지의 중앙에 위치시키기
         text_rect = text_surf.get_rect(center=self.image.get_rect().center)

@@ -2,7 +2,10 @@ import pygame
 from block import Block
 from player import Player
 import random
-from env import SCREEN_WIDTH, SCREEN_HEIGHT, WHITE, BLACK, BLOCKS_COUNT, RED
+from env import SCREEN_WIDTH, SCREEN_HEIGHT, WHITE, BLACK, BLOCKS_COUNT, RED, XP_BAR, LEVEL_RECT, HEALTH
+from illustrator import create_pixel_art_rects
+
+
 
 # --- 초기 설정 ---
 pygame.init()
@@ -13,6 +16,9 @@ pygame.display.set_caption("몬스터 잡고 레벨업!")
 
 # 폰트 설정
 font = pygame.font.Font(None, 40)
+level_font = pygame.font.Font(None, 25)
+xp_font = pygame.font.Font(None, 25)
+health_font = pygame.font.Font(None, 25)
 
 # 게임 시간 관련
 clock = pygame.time.Clock()
@@ -22,7 +28,7 @@ player = Player()
 blocks = pygame.sprite.Group() # 화면에 그리기 및 업데이트를 위한 그룹
 block_list = [] # 순서대로 블록을 참조하기 위한 리스트
 
-attack_keys = [pygame.K_a, pygame.K_s, pygame.K_d, pygame.K_f, pygame.K_q, pygame.K_w, pygame.K_e, pygame.K_r]
+attack_keys = [pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT]
 
 # 몬스터 그룹 생성
 def create_blocks():
@@ -33,6 +39,18 @@ def create_blocks():
         block = Block(random.choice(attack_keys), idx)
         blocks.add(block)
         block_list.append(block)
+
+# UI 텍스트 그리기 (체력)
+def create_health(health, color, x, y, pixel_size):
+        health_pixels = []
+        for _ in range(health // HEALTH["full_heart"]):
+            health_pixels.append(HEALTH["shapes"][HEALTH["full_heart"]])
+        health_pixels.append(HEALTH["shapes"][health % HEALTH["full_heart"]])
+
+        for health_pixel in health_pixels:
+            for health_rect in create_pixel_art_rects(health_pixel, x, y, pixel_size):
+                pygame.draw.rect(screen, color, health_rect)
+            x += pixel_size * HEALTH["tile_count"]
 
 # --- 메인 게임 루프 ---
 def hunt_monsters():
@@ -52,14 +70,18 @@ def hunt_monsters():
             if event.type == pygame.KEYDOWN and event.key in attack_keys:
                 # 처리해야 할 블록이 남아있는지 확인
                 if idx < len(block_list):
+                    effect_font = pygame.font.SysFont("malgungothic", 50)
                     if event.key == block_list[idx].key:
-                        print("블록 처치!")
+                        effect_text = "블록 처치!"
                         player.gain_xp(25) # 블록을 잡으면 25 XP 획득
                         block_list[idx].kill() # 블록을 그룹에서 제거 (화면에서 사라짐)
                         idx += 1
                     else:
-                        print("헉 아푸다!")
+                        effect_text = "헉 아푸다!"
                         player.lose_life()
+                    screen.blit(effect_font.render(effect_text, True, BLACK), (SCREEN_WIDTH // 2 - 120, 150))
+                    pygame.display.flip()
+                    pygame.time.wait(50)
 
         # --- 게임 로직 업데이트 ---
         # 블록이 하나도 없으면 다음 웨이브 생성
@@ -79,13 +101,31 @@ def hunt_monsters():
         # 몬스터 그룹에 포함된 모든 몬스터 그리기
         blocks.draw(screen)
 
-        # UI 텍스트 그리기 (레벨, 경험치, 체력)
-        level_text = font.render(f"Level: {player.level}", True, BLACK)
-        xp_text = font.render(f"XP: {player.xp} / {player.xp_to_next_level}", True, BLACK)
-        health_text = font.render(f"Health: {player.health_remain} / {player.health}", True, BLACK)
-        screen.blit(level_text, (10, 10))
-        screen.blit(xp_text, (10, 50))
-        screen.blit(health_text, (10, 90))
+        # UI 텍스트 그리기 (레벨)
+        level_display_area = pygame.Rect(LEVEL_RECT)
+        level_text = level_font.render(f"Lvl. {player.level}", True, BLACK)
+        level_text_rect = level_text.get_rect(midleft=level_display_area.midleft)
+        screen.blit(level_text, level_text_rect)
+        
+        # 경험치 비율 계산 (0.0 ~ 1.0)
+        xp_ratio = player.xp / player.xp_to_next_level
+        fill_width = int(XP_BAR["rect"]["width"] * xp_ratio)
+
+        # 경험치 바 그리기 (배경 -> 채우기 -> 테두리 순서로 그려야 제대로 보입니다)
+        xp_background_rect = pygame.Rect(XP_BAR["rect"]["x"], XP_BAR["rect"]["y"], XP_BAR["rect"]["width"], XP_BAR["rect"]["height"])
+        xp_fill_rect = pygame.Rect(XP_BAR["rect"]["x"], XP_BAR["rect"]["y"], fill_width, XP_BAR["rect"]["height"])
+        pygame.draw.rect(screen, XP_BAR["bg"], xp_background_rect)
+        pygame.draw.rect(screen, XP_BAR["fill"], xp_fill_rect)
+
+        # 경험치 텍스트를 바 위에 표시
+        xp_text = xp_font.render(f"{player.xp} / {player.xp_to_next_level}", True, BLACK)
+        screen.blit(xp_text, xp_text.get_rect(center=xp_background_rect.center))
+
+        # UI 텍스트 그리기 (전체 체력)
+        create_health(player.health, HEALTH["bg"], HEALTH["x"], HEALTH["y"], HEALTH["pixel_size"])
+
+        # UI 텍스트 그리기 (남은 체력)
+        create_health(player.health_remain, HEALTH["fill"], HEALTH["x"], HEALTH["y"], HEALTH["pixel_size"])
 
         # 화면 업데이트
         pygame.display.flip()
