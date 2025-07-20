@@ -3,7 +3,7 @@ from env import BLOCK, BLOCKS_COUNT, BLOCKS_X_TILE_COUNT
 
 
 class Block(pygame.sprite.Sprite):
-    """몬스터 클래스: 위치, 크기 등을 관리"""
+    """블록 클래스: 위치, 크기 등을 관리"""
     def __init__(self, key, idx):
         super().__init__()  # 스프라이트 초기화
         self.key = key
@@ -29,9 +29,23 @@ class Block(pygame.sprite.Sprite):
         self.image.blit(text_surf, text_rect) # 몬스터 이미지에 텍스트 그리기
 
         self.respawn(idx)  # 초기 위치 설정
+        self.is_dying = False
+        self.animation_speed = 20
+
+    def start_death_animation(self):
+        """블록이 사라지는 애니메이션을 시작합니다."""
+        self.is_dying = True
+
+    def update(self):
+        """블록의 상태를 업데이트합니다. (애니메이션 등)"""
+        if self.is_dying:
+            self.rect.x -= self.animation_speed
+            # 화면 왼쪽 밖으로 완전히 나가면 스스로를 제거합니다.
+            if self.rect.right < 0:
+                self.kill()
 
     def respawn(self, idx):
-        """몬스터를 정해진 위치에 다시 생성하는 메소드"""
+        """블록을 정해진 위치에 다시 생성하는 메소드"""
         if idx < BLOCKS_COUNT:
             self.rect.x = idx % BLOCKS_X_TILE_COUNT * self.size
             self.rect.y = BLOCK["spawn_screen"]["height"] + idx // BLOCKS_X_TILE_COUNT * self.size

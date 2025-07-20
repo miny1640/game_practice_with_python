@@ -4,7 +4,7 @@ class Player:
         self.level = 1
         self.xp = 0
         self.xp_to_next_level = 100
-        self.health = 3 # 플레이어 최대체력
+        self.health = 4 # 플레이어 최대체력
         self.health_remain = self.health # 플레이어 체력
 
     def gain_xp(self, amount):

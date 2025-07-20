@@ -1,11 +1,9 @@
-SCREEN_WIDTH = 500
+SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 600
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
-
-LEVEL_RECT = (10, 10, 100, 20)
 
 HEALTH_SHAPES = [[
     "",
@@ -44,32 +42,34 @@ HEALTH_SHAPES = [[
     "    xxx    ",
     "     x     ",
 ]]
+
+XP_BAR = {
+            "bg" : (220, 220, 220), 
+            "fill" : (124, 252, 0),
+            "font_size" : 15,
+            "rect" : {
+                "x" : 0,
+                "y" : 0,
+                "width" : SCREEN_WIDTH,
+                "height" : 10
+            }
+}
+
 HEALTH = {
             "bg" : (220, 220, 220), 
             "fill" : RED,
             "pixel_size" : 2,
-            "x" : 10,
-            "y" : 30,
+            "x" : 0,
+            "y" : XP_BAR["rect"]["height"] + 2,
             "tile_count" : len(HEALTH_SHAPES[len(HEALTH_SHAPES) - 1][0]),
             "full_heart" : len(HEALTH_SHAPES) - 1,
             "shapes" : HEALTH_SHAPES,
 }
 
-XP_BAR = {
-            "bg" : (220, 220, 220), 
-            "fill" : (124, 252, 0),
-            "rect" : {
-                "x" : 100,
-                "y" : 10,
-                "width" : 400,
-                "height" : 20
-            }
-}
-
 BLOCK = {
             "spawn_screen" : {
                                 "width" : SCREEN_WIDTH, 
-                                "height":SCREEN_HEIGHT // 2
+                                "height":SCREEN_HEIGHT - 100
                             },
             "size" : 100,
             "font_size" : 30,
@@ -80,6 +80,6 @@ BLOCK = {
                         (54, 23, 8), (242, 165, 156), (198, 89, 75), (125, 165, 200), (14, 17, 70)
                         ],
 }
-BLOCKS_COUNT = BLOCK["spawn_screen"]["width"] * BLOCK["spawn_screen"]["height"] // (BLOCK["size"] ** 2)
+BLOCKS_COUNT = BLOCK["spawn_screen"]["width"] * (SCREEN_HEIGHT - BLOCK["spawn_screen"]["height"]) // (BLOCK["size"] ** 2)
 BLOCKS_X_TILE_COUNT = BLOCK["spawn_screen"]["width"] // BLOCK["size"]
 BLOCKS_Y_TILE_COUNT = BLOCK["spawn_screen"]["height"] // BLOCK["size"]
