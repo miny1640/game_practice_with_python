@@ -1,11 +1,10 @@
 import pygame
 from block import Block
 from player import Player
+from monster import Monster
 import random
-from env import SCREEN_WIDTH, SCREEN_HEIGHT, WHITE, BLACK, BLUE, RED, BLOCKS_COUNT, XP_BAR, HEALTH
+from env import SCREEN_WIDTH, SCREEN_HEIGHT, WHITE, BLACK, BLUE, RED, BLOCKS_COUNT, XP_BAR, HEALTH, MONSTER_HP_BAR
 from illustrator import create_pixel_art_rects
-
-
 
 # --- 초기 설정 ---
 pygame.init()
@@ -17,26 +16,39 @@ pygame.display.set_caption("몬스터 잡고 레벨업!")
 # 폰트 설정
 level_font = pygame.font.Font(None, XP_BAR["font_size"])
 xp_font = pygame.font.Font(None, XP_BAR["font_size"])
+hp_bar_font = pygame.font.Font(None, MONSTER_HP_BAR["font_size"])
 
 # 게임 시간 관련
 clock = pygame.time.Clock()
 
 # --- 게임 객체 생성 ---
 player = Player() 
+monster = Monster()
+all_sprites = pygame.sprite.Group(monster) # 몬스터를 그리기 위한 그룹
 blocks = pygame.sprite.Group() # 화면에 그리기 및 업데이트를 위한 그룹
 block_list = [] # 순서대로 블록을 참조하기 위한 리스트
 
 attack_keys = [pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT]
 
-# 몬스터 그룹 생성
+# 블록 그룹 생성
 def create_blocks():
     global block_list
     blocks.empty()
     block_list = []
-    for idx in range(BLOCKS_COUNT): 
-        block = Block(random.choice(attack_keys), idx)
-        blocks.add(block)
-        block_list.append(block)
+    for _ in range(BLOCKS_COUNT): 
+        add_block_on_tail()
+
+# 꼬리에 블록 추가
+def add_block_on_tail():
+    block = Block(random.choice(attack_keys), len(block_list))
+    blocks.add(block)
+    block_list.append(block)
+
+# 꼬리에 블록 추가
+def remove_head_block():
+    if block_list:
+        block_list[0].kill()
+        block_list.pop(0)
 
 # UI 텍스트 그리기 (체력)
 def create_health(health, color):
@@ -64,13 +76,28 @@ def display_game_over_window(bg_color, text, text_color):
     pygame.display.flip()
     pygame.time.wait(3000) # 3초간 보여주고 종료
 
+# 몬스터 HP 바 그리기
+def draw_monster_hp_bar(monster):
+    # HP 비율 계산
+    ratio = monster.hp / monster.max_hp
+    
+    # HP 바 배경 및 채우기 Rect 생성
+    bg_rect = pygame.Rect(MONSTER_HP_BAR["x"], MONSTER_HP_BAR["y"], MONSTER_HP_BAR["width"], MONSTER_HP_BAR["height"])
+    fill_rect = pygame.Rect(MONSTER_HP_BAR["x"], MONSTER_HP_BAR["y"], MONSTER_HP_BAR["width"] * ratio, MONSTER_HP_BAR["height"])
+
+    # HP 바 그리기
+    pygame.draw.rect(screen, MONSTER_HP_BAR["bg"], bg_rect)
+    pygame.draw.rect(screen, MONSTER_HP_BAR["fill"], fill_rect)
+
+    hp_text = hp_bar_font.render(f"{monster.hp} / {monster.max_hp}", True, MONSTER_HP_BAR["text_color"])
+    screen.blit(hp_text, hp_text.get_rect(center=bg_rect.center))
+
 # --- 메인 게임 루프 ---
 def hunt_monsters():
     create_blocks() # 게임 시작 시 첫 블록 웨이브 생성
     running = True
     you_died = False
     you_win = False
-    idx = 0
     while running:
         # 초당 60프레임으로 게임 속도 조절
         clock.tick(60)
@@ -82,32 +109,29 @@ def hunt_monsters():
                 running = False
             if event.type == pygame.KEYDOWN:
                 if event.key in attack_keys:
-                    # 처리해야 할 블록이 남아있는지 확인
-                    if idx < len(block_list):
-                        effect_font = pygame.font.SysFont("malgungothic", 50)
-                        if event.key == block_list[idx].key:
-                            effect_text = "블록 처치!"
-                            player.gain_xp(10) # 블록을 잡으면 25 XP 획득
-                            block_list[idx].start_death_animation() # 블록 사라지는 애니메이션 시작
-                            idx += 1
-                        else:
-                            effect_text = "헉 아푸다!"
-                            player.lose_life()
-                        screen.blit(effect_font.render(effect_text, True, BLACK), (SCREEN_WIDTH // 2 - 120, 150))
-                        pygame.display.flip()
-                        pygame.time.wait(50)
+                    effect_font = pygame.font.SysFont("malgungothic", 50)
+                    if event.key == block_list[0].key:
+                        effect_text = "공격 성공!"
+                        monster.take_damage(player.attack_power) # 몬스터 공격
+
+                        # 몬스터가 죽었는지 확인
+                        if not monster.is_alive():
+                            player.gain_xp(monster.xp_reward) # 경험치 획득
+                            monster.respawn(player.level) # 새 몬스터 등장
+
+                        remove_head_block() # 블록 제거
+                        for block in blocks:
+                            block.move_left() # 블록 위치 재설정
+                        add_block_on_tail() # 새로운 블록 추가
+                    else:
+                        effect_text = "헉, 아푸다!"
+                        player.lose_life()
+                    screen.blit(effect_font.render(effect_text, True, BLACK), (SCREEN_WIDTH // 2 - 120, 150))
+                    pygame.display.flip()
+                    pygame.time.wait(50)
                 elif event.key == pygame.K_ESCAPE:
                     # ESC 향후 메뉴를 선택할 수 있도록
                     running = False
-
-        # --- 게임 로직 업데이트 ---
-        # 모든 블록의 상태를 업데이트합니다 (사라지는 애니메이션 등).
-        blocks.update()
-
-        # 블록이 하나도 없으면 다음 웨이브 생성
-        if not blocks:
-            create_blocks()
-            idx = 0
 
         # 게임 오버 조건 확인
         if player.health_remain <= 0:
@@ -123,7 +147,10 @@ def hunt_monsters():
         # 배경색 채우기 (이전 프레임을 지우기 위해 루프 안에 위치)
         screen.fill(WHITE)
 
-        # 몬스터 그룹에 포함된 모든 몬스터 그리기
+        # 몬스터 그리기
+        all_sprites.draw(screen)
+
+        # 블록 그룹에 포함된 모든 블록 그리기
         blocks.draw(screen)
 
         # 경험치 비율 계산 (0.0 ~ 1.0)
@@ -147,6 +174,9 @@ def hunt_monsters():
 
         # UI 텍스트 그리기 (남은 체력)
         create_health(player.health_remain, HEALTH["fill"])
+
+        # 몬스터 HP 바 그리기
+        draw_monster_hp_bar(monster)
 
         # 화면 업데이트
         pygame.display.flip()
